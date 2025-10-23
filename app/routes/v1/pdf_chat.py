@@ -6,7 +6,7 @@ from app.services.pdf_chat_service import Pdf_chat_service
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-router = APIRouter(prefix="/pdf_chat", tags=["magic_chat"])
+router = APIRouter(prefix="/pdf_chat", tags=["pdf_chat"])
 service = Pdf_chat_service()
 
 class Pdf_chat_payload(BaseModel):

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Certificado de Crédito</title>
+  <style>
+    body{ font-family:'Segoe UI',Arial,sans-serif; background:#f4f6fa; padding:20px; }
+    .sheet{ background:white; max-width:800px; margin:auto; padding:30px; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,0.1); }
+    header{ display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #0056b3; padding-bottom:10px; }
+    .logo img{ height:60px; }
+    .title{ text-align:center; font-size:22px; font-weight:bold; color:#0056b3; margin-top:20px; }
+    .section{ margin-top:20px; }
+    .field{ margin-bottom:10px; }
+    label{ font-weight:bold; color:#333; }
+    .value{ border:1px solid #ccc; border-radius:6px; padding:6px 10px; background:#fafafa; }
+    table{ width:100%; border-collapse:collapse; margin-top:10px; }
+    th,td{ border:1px solid #ccc; padding:8px; text-align:center; }
+    th{ background:#e9eef8; }
+    footer{ margin-top:30px; text-align:center; border-top:1px solid #ccc; padding-top:10px; }
+  </style>
+</head>
+<body>
+  <div class="sheet" id="certificado">
+    <header>
+      <div class="logo">
+        <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='40'><rect width='120' height='40' rx='6' fill='%230056b3'/><text x='14' y='26' font-family='Arial' font-size='14' fill='white'>ENTIDAD</text></svg>" alt="Logo" />
+      </div>
+      <div>
+        <div style="font-weight:bold; font-size:13px;">Entidad Financiera S.A.S.</div>
+        <div style="font-size:12px; color:#555;">Nit: 900.000.000-0</div>
+        <div style="font-size:12px; color:#555;">Bogotá, Colombia</div>
+      </div>
+    </header>
+
+    <div class="title">CERTIFICADO DE CRÉDITO</div>
+
+    <div class="section">
+      <div class="field"><label>Nombre:</label> <div class="value" id="out_nombre">—</div></div>
+      <div class="field"><label>Cédula:</label> <div class="value" id="out_cedula">—</div></div>
+      <div class="field"><label>Número de cuenta:</label> <div class="value" id="out_cuenta">—</div></div>
+      <div class="field"><label>Monto total:</label> <div class="value" id="out_monto">—</div></div>
+      <div class="field"><label>Fecha de emisión:</label> <div class="value" id="out_fecha">—</div></div>
+    </div>
+
+    <div class="section">
+      <h3 style="color:#0056b3;">Detalle de cuotas</h3>
+      <table id="tabla_cuotas">
+        <thead>
+          <tr><th>N°</th><th>Valor</th><th>Fecha de pago</th><th>Estado</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>$350.000</td><td>2025-11-22</td><td>Pendiente</td></tr>
+          <tr><td>2</td><td>$350.000</td><td>2025-12-22</td><td>Pendiente</td></tr>
+          <tr><td>3</td><td>$350.000</td><td>2026-01-22</td><td>Pendiente</td></tr>
+          <tr><td>4</td><td>$350.000</td><td>2026-02-22</td><td>Pendiente</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer>
+      <p>Este certificado se expide a solicitud del interesado y tiene validez según los registros de la entidad.</p>
+      <p style="margin-top:30px;">_________________________<br>Gerente de Crédito</p>
+    </footer>
+  </div>
+</body>
+</html>

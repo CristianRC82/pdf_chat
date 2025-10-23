@@ -1,7 +1,7 @@
 import logging
 from fastapi import HTTPException
 from typing import Dict, Any
-from app.core.singleton.magic_chat_graph import GraphSingleton
+from app.core.singleton.pdf_chat_graph import GraphSingleton
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)

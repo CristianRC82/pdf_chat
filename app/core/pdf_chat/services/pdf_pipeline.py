@@ -1,7 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from app.core.llm.azure_open_ai import llm_miniA
-from app.core.pdf_chat.prompts.post_proccess_prompt import system_prompt_postprocessing
+from app.core.pdf_chat.prompts.pdf_prompt import system_prompt_postprocessing
 
 """ service in charge of managing the post process node """
 
