@@ -1,0 +1,53 @@
+name: Test Services Arequipa
+description: "Composite Action used to manage Tests"
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "0.5.11"
+        enable-cache: true
+    - name: Set up Python
+      shell: bash
+      run: uv python install 3.11
+    - name: Set environment variables
+      shell: bash
+      run: echo "PYTHONPATH=$PYTHONPATH:$(pwd)" >> $GITHUB_ENV
+    - name: Check if dependencies changed
+      shell: bash
+      id: check-deps
+      run: |
+        if git rev-parse HEAD^ >/dev/null 2>&1 && git diff --quiet HEAD^ HEAD -- pyproject.toml uv.lock; then
+          echo "skip_install=true" >> "$GITHUB_ENV"
+          echo "skip_install=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "skip_install=false" >> "$GITHUB_ENV"
+          echo "skip_install=false" >> "$GITHUB_OUTPUT"
+        fi
+    - name: Install dependencies
+      shell: bash
+      if: steps.check-deps.outputs.skip_install != 'true'
+      run: |
+        uv sync || (echo "Error installing dependencies" && exit 1)
+    # - name: Run tests (if any)
+    #   shell: bash
+    #   run: |
+    #     if find app/tests -type f -name 'test_*.py' | grep -q .; then
+    #       echo "Found tests, running pytest..."
+    #       uv run pytest || (echo "Tests failed" && exit 1)
+    #     else
+    #       echo "No tests found. Skipping pytest."
+    #     fi
+    # - name: Run type checking (if config exists)
+    #   shell: bash
+    #   run: |
+    #     if [ -f "mypy.ini" ] || [ -f "pyproject.toml" ]; then
+    #       echo "Running mypy..."
+    #       uv run mypy . || (echo "Type checking failed" && exit 1)
+    #     else
+    #       echo "No mypy config found. Skipping type checking."
+    #     fi

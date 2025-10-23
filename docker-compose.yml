@@ -1,0 +1,26 @@
+services:
+  redis:
+    image: redis:7.2.4-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    environment:
+      - REDIS_PASSWORD=local
+    restart: always
+  web:
+    build: .
+    ports:
+     - "8080:8080"
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=[credentials located in the root]
+      - GOOGLE_CLOUD_PROJECT=[gcp-project-id]
+    volumes:
+      - .:/app
+      - /app/.venv
+    depends_on:
+      - redis
+
+volumes:
+  redis_data:
+    driver: local

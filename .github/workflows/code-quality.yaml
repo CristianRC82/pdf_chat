@@ -1,0 +1,15 @@
+name: Code Quality
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Run custom test action
+        uses: ./.github/custom/test

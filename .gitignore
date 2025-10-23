@@ -1,0 +1,31 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# environment variables
+.env
+
+# coverage
+.coverage
+
+# logs
+*.log
+
+#image graph
+magic_chat_graph.png
+advisor_chat_graph.png
+
+#RAG
+vector_store/
+
+
+.vscode
+.idea
+*.json

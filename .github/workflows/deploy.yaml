@@ -1,0 +1,202 @@
+name: Deploy
+on:
+  workflow_call:
+    inputs:
+      gcp_env:
+        required: true
+        type: string
+      branch_name:
+        required: true
+        type: string
+jobs:
+  changes_chart:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment: ${{ inputs.gcp_env || github.ref_name }}
+    outputs:
+      updated_chart: ${{ steps.check-diff.outputs.updated_chart }}
+      chart_version: ${{ steps.helm.outputs.chart_version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+          fetch-depth: 0
+      - name: Set env vars for GCP and branch
+        id: set-env-vars
+        run: |
+          echo "GCP_ENV=${{ inputs.gcp_env || github.ref_name }}" >> $GITHUB_ENV
+          echo "BRANCH_NAME=${{ inputs.branch_name || github.ref_name }}" >> $GITHUB_ENV
+      - name: Set target branch
+        id: set-env-branch
+        run: |
+          branch="${{ env.BRANCH_NAME }}"
+          if [[ "$branch" == "dev" ]]; then
+            echo "target_branch=origin/dev" >> $GITHUB_OUTPUT
+          elif [[ "$branch" == "qa" ]]; then
+            echo "target_branch=origin/qa" >> $GITHUB_OUTPUT
+          elif [[ "$branch" == "prod" || "$branch" == "master" ]]; then
+            echo "target_branch=origin/master" >> $GITHUB_OUTPUT
+          else
+            echo "target_branch=origin/dev" >> $GITHUB_OUTPUT
+          fi
+      - name: Check if chart changed vs target branch
+        id: check-diff
+        run: |
+          git fetch origin
+          TARGET_BRANCH=${{ steps.set-env-branch.outputs.target_branch }}
+          if ! git ls-tree -r "$TARGET_BRANCH" --name-only | grep -q "^ci/helm/chart/"; then
+            echo "updated_chart=false" >> $GITHUB_OUTPUT
+          else
+            if git diff --quiet "$TARGET_BRANCH"...HEAD -- ci/helm/chart/; then
+              echo "updated_chart=false" >> $GITHUB_OUTPUT
+            else
+              echo "updated_chart=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+      - name: Custom action helm
+        uses: ./.github/custom/helm
+        id: helm
+        with:
+          UPDATED_VERSION_CHART: ${{ steps.check-diff.outputs.updated_chart }}
+          HELM_REPO_NAME: ${{ vars.HELM_REPO_NAME }}
+          REGION: ${{ vars.REGION }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+  deploy:
+    runs-on: ubuntu-latest
+    needs: changes_chart
+    permissions:
+      id-token: write
+      contents: read
+    environment: ${{ inputs.gcp_env }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Cache gcloud components
+        id: cache-gcloud
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.config/gcloud
+            /opt/hostedtoolcache/gcloud
+          key: gcloud-${{ runner.os }}-${{ hashFiles('.github/workflows/**') }}-v2
+          restore-keys: |
+            gcloud-${{ runner.os }}-v2
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      - name: Install gcloud beta components (if not cached)
+        if: steps.cache-gcloud.outputs.cache-hit != 'true'
+        run: |
+          echo "Installing gcloud beta components..."
+          gcloud components install beta --quiet
+          gcloud components list
+      - name: Verify gcloud beta components
+        run: |
+          echo "Verifying gcloud beta components..."
+          gcloud components list | grep beta || echo "Beta components not found, installing..."
+          if ! gcloud components list | grep -q "beta.*Installed"; then
+            echo "Beta components not properly installed, installing now..."
+            gcloud components install beta --quiet
+          fi
+      - name: Validate Chart Version Helm
+        shell: bash
+        run: |
+          echo ${{needs.changes_chart.outputs.chart_version}}
+      - name: variables
+        uses: ./.github/custom/variables
+        with:
+          gcp_project_id: ${{secrets.GCP_PROJECT_ID}}
+          gcp_env: ${{ inputs.gcp_env }}
+          env: ${{inputs.gcp_env }}
+          project_name: ${{ secrets.PROJECT_NAME }}
+          redis_host: ${{secrets.REDIS_HOST}}
+          redis_password: ${{secrets.REDIS_PASSWORD}}
+          azure_openai_api_key: ${{secrets.AZURE_OPENAI_API_KEY}}
+          azure_openai_version: ${{secrets.AZURE_OPENAI_API_VERSION}}
+          azure_instance_name: ${{secrets.AZURE_INSTANCE_NAME}}
+          azure_openai_deployment_name: ${{secrets.AZURE_OPENAI_DEPLOYMENT_NAME}}
+          azure_openai_endpoint: ${{secrets.AZURE_OPENAI_ENDPOINT}}
+          azure_openai_api_version_o3_mini: ${{secrets.AZURE_OPENAI_API_VERSION_o3_MINI}}
+          azure_openai_deployment_name_o3_mini: ${{secrets.AZURE_OPENAI_DEPLOYMENT_NAME_o3_MINI}}
+          azure_openai_endpoint_o3_mini: ${{secrets.AZURE_OPENAI_ENDPOINT_o3_MINI}}
+          azure_instance_name_o3_mini: ${{secrets.AZURE_INSTANCE_NAME_o3_MINI}}
+          langfuse_secret_key: ${{secrets.LANGFUSE_SECRET_KEY}}
+          langfuse_public_key: ${{secrets.LANGFUSE_PUBLIC_KEY}}
+          langfuse_host: ${{secrets.LANGFUSE_HOST}}
+      - name: load file .env
+        run: |
+          echo "GCP_PROJECT_ID=${{secrets.GCP_PROJECT_ID}}" >> $GITHUB_ENV
+          echo "SERVICE=${{vars.SERVICE_NAME}}" >> $GITHUB_ENV
+          echo "SHA=${{ github.sha }}" >> $GITHUB_ENV
+          echo "REGISTRY_ZONE=${{ secrets.REGISTRY_ZONE }}" >> $GITHUB_ENV
+          echo "NODE_POOL=${{ secrets.NODE_POOL }}" >> $GITHUB_ENV
+          echo "GCP_ENV=${{ inputs.gcp_env }}" >> $GITHUB_ENV
+      - uses: RafikFarhad/push-to-gcr-github-action@v5-rc1
+        with:
+          registry: ${{vars.REGION}}-docker.pkg.dev
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          image_name: ${{ vars.SERVICE_NAME }}/${{ vars.SERVICE_NAME }}
+          image_tag: ${{ github.sha }}
+          dockerfile: ./Dockerfile
+          context: ./
+      - name: Create directory on bastion
+        run: |
+          gcloud beta compute ssh "${{ inputs.gcp_env }}-bastion" \
+            --zone="${{ secrets.BASTION_ZONE }}" \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --tunnel-through-iap \
+            --command="mkdir -p ~/${{ vars.HELM_REPO_NAME }}" \
+            --quiet
+      - name: Copy file to VM
+        run: |
+          envsubst < ./ci/environment/values-${{ inputs.gcp_env }}.yaml >> ./ci/helm/values.yaml
+      - name: Upload values file to bastion
+        run: |
+          gcloud beta compute scp ./ci/helm/values.yaml \
+            "${{ inputs.gcp_env }}-bastion":~/${{ vars.HELM_REPO_NAME }}/values.yaml \
+            --zone="${{ secrets.BASTION_ZONE }}" \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --tunnel-through-iap \
+            --quiet
+      - name: Schedule file deletion on Bastion
+        run: |
+          gcloud beta compute ssh "${{ inputs.gcp_env }}-bastion" \
+            --zone="${{ secrets.BASTION_ZONE }}" \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --tunnel-through-iap \
+            --command="nohup bash -c 'sleep 120 && rm -f ~/${{ vars.HELM_REPO_NAME }}/values.yaml' >/dev/null 2>&1 &" \
+            --quiet
+      - name: Connect to Bastion and Apply Changes
+        run: |
+          gcloud beta compute ssh "${{ inputs.gcp_env }}-bastion" \
+            --zone="${{ secrets.BASTION_ZONE }}" \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --tunnel-through-iap \
+            --command="
+              export GCP_ENV='${{ inputs.gcp_env }}'
+              ISPROD=\$(if [ \"\$GCP_ENV\" = \"prod\" ]; then echo \"--region\"; else echo \"--zone\"; fi)
+              # login k8s
+              gcloud container clusters get-credentials ${{ secrets.CLUSTER }} \$ISPROD ${{ secrets.GKE_ZONE }} --project ${{ secrets.GCP_PROJECT_ID }}
+              # login registry
+              gcloud auth print-access-token | helm registry login -u oauth2accesstoken --password-stdin https://${{ vars.REGION }}-docker.pkg.dev
+              # helm upgrade
+              helm upgrade --install ${{ vars.HELM_REPO_NAME }} \
+                oci://${{ secrets.REGISTRY_ZONE }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ vars.HELM_REPO_NAME }}/${{ vars.HELM_REPO_NAME }} \
+                -f ~/${{ vars.HELM_REPO_NAME }}/values.yaml \
+                --version ${{ needs.changes_chart.outputs.chart_version }} \
+                --namespace \$GCP_ENV \
+                --wait --timeout 300s \
+                --atomic
+            " \
+            --quiet

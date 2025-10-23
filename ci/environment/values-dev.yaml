@@ -1,0 +1,57 @@
+config:
+  replicas: 1
+  name: $SERVICE
+  host: arequipa-dev.bpsmart.ai
+  image: $REGISTRY_ZONE-docker.pkg.dev/$GCP_PROJECT_ID/$SERVICE/$SERVICE:$SHA
+  nodePool: $NODE_POOL
+  iamMetaData: true
+  serviceAccount: k8s-$GCP_ENV
+  namespace: $GCP_ENV
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+variables:
+  - name: GCP_ENV
+    value: $GCP_ENV
+  - name: GCP_PROJECT_ID
+    value: $GCP_PROJECT_ID
+  - name: ENV
+    value: $GCP_ENV
+  - name: PROJECT_NAME
+    value: $PROJECT_NAME
+  - name: REDIS_HOST
+    value: $REDIS_HOST
+  - name: REDIS_PASSWORD
+    value: $REDIS_PASSWORD
+  - name: AZURE_OPENAI_API_KEY
+    value: $AZURE_OPENAI_API_KEY
+  - name: AZURE_OPENAI_API_VERSION
+    value: $AZURE_OPENAI_API_VERSION
+  - name: AZURE_INSTANCE_NAME
+    value: $AZURE_INSTANCE_NAME
+  - name: AZURE_OPENAI_DEPLOYMENT_NAME
+    value: $AZURE_OPENAI_DEPLOYMENT_NAME
+  - name: AZURE_OPENAI_ENDPOINT
+    value: $AZURE_OPENAI_ENDPOINT
+  - name: AZURE_OPENAI_API_VERSION_o3_MINI
+    value: $AZURE_OPENAI_API_VERSION_o3_MINI
+  - name: AZURE_OPENAI_DEPLOYMENT_NAME_o3_MINI
+    value: $AZURE_OPENAI_DEPLOYMENT_NAME_o3_MINI
+  - name: AZURE_OPENAI_ENDPOINT_o3_MINI
+    value: $AZURE_OPENAI_ENDPOINT_o3_MINI
+  - name: AZURE_INSTANCE_NAME_o3_MINI
+    value: $AZURE_INSTANCE_NAME_o3_MINI
+  - name: LANGFUSE_SECRET_KEY
+    value: $LANGFUSE_SECRET_KEY
+  - name: LANGFUSE_PUBLIC_KEY
+    value: $LANGFUSE_PUBLIC_KEY
+  - name: LANGFUSE_HOST
+    value: $LANGFUSE_HOST
+
+topologyConstraints:
+  enabled: false

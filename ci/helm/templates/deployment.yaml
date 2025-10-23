@@ -1,0 +1,55 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.config.name }}
+  labels:
+   {{- include "app.labels" . | nindent 4 }}
+  annotations:
+    meta.helm.sh/release-name: {{ .Release.Name }}
+    meta.helm.sh/release-namespace: {{ .Release.Namespace }}
+spec:
+  strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: 1
+        maxSurge: 1
+  replicas: {{ .Values.config.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.config.name }}
+  template:
+    metadata:
+      labels:
+      {{- include "app.labels" . | nindent 8 }}
+    spec:
+      {{- if .Values.topologyConstraints.enabled -}}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: {{ .Values.config.name }}
+      {{- end }}
+      containers:
+        - name: {{ .Values.config.name }}
+          image: {{ .Values.config.image }}
+          env:
+          {{- toYaml .Values.variables | nindent 12 }}
+          resources:
+          {{- toYaml .Values.config.resources | nindent 12 }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+      nodeSelector:
+        cloud.google.com/gke-nodepool: {{ .Values.config.nodePool }}
+        iam.gke.io/gke-metadata-server-enabled : {{ .Values.config.iamMetaData }}
+      serviceAccount: {{ .Values.config.serviceAccount }}
+      topologySpreadConstraints:
+      - labelSelector:
+          matchLabels:
+            app: {{ .Values.config.name }}
+        maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway

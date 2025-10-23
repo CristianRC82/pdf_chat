@@ -1,0 +1,82 @@
+name: Check Deploy Trigger
+# Trigger on push to any branch to allow deployment logic from feature branches
+on:
+  push:
+    branches:
+      - '**'
+jobs:
+  can_deploy:
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.check.outputs.should_deploy }}
+      gcp_env: ${{ steps.env.outputs.gcp_env }}
+      branch_name: ${{ steps.branch.outputs.branch_name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Extract branch name
+        id: branch
+        run: echo "branch_name=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
+
+      - name: Determine if deployment should run
+        id: check
+        run: |
+          branch="${{ github.ref_name }}"
+          commit="${{ github.event.head_commit.message }}"
+          echo "Checking deployment conditions..."
+          echo "Current branch: $branch"
+          echo "Commit message: $commit"
+
+          should_deploy=false
+
+          # Always deploy for qa, prod, master after merge/push
+          if [[ "$branch" =~ ^(qa|prod|master)$ ]]; then
+            echo "Auto-deploy enabled for $branch"
+            should_deploy=true
+          # In dev, deploy only with [deploy] keyword or merge commit
+          elif [[ "$branch" == "dev" ]]; then
+            # Deploy if this is a merge commit (merge PR to dev)
+            if [[ "$commit" == Merge* ]]; then
+              echo "Merge commit detected in dev branch. Will deploy."
+              should_deploy=true
+            # Deploy if commit contains [deploy]
+            elif [[ "$commit" == *"[deploy]"* ]]; then
+              echo "Found [deploy] in commit on dev branch"
+              should_deploy=true
+            else
+              echo "No trigger for deployment in dev branch."
+            fi
+          # For feature/custom branches, deploy only if commit contains [deploy]
+          else
+            if [[ "$commit" == *"[deploy]"* ]]; then
+              echo "[deploy] keyword found in feature branch. Will deploy to dev."
+              should_deploy=true
+            else
+              echo "No [deploy] keyword found. Skipping deployment."
+            fi
+          fi
+          echo "should_deploy=$should_deploy" >> $GITHUB_OUTPUT
+
+      - name: Set GCP environment based on target logic
+        id: env
+        run: |
+          branch="${{ steps.branch.outputs.branch_name }}"
+          gcp_env="dev"
+          # Set GCP environment for qa, prod, master
+          if [[ "$branch" == "qa" ]]; then
+            gcp_env="qa"
+          elif [[ "$branch" == "prod" || "$branch" == "master" ]]; then
+            gcp_env="prod"
+          fi
+          echo "gcp_env=$gcp_env" >> $GITHUB_OUTPUT
+  deploy:
+    name: Trigger deployment
+    needs: can_deploy
+    if: needs.can_deploy.outputs.should_deploy == 'true'
+    uses: ./.github/workflows/deploy.yaml
+    with:
+      gcp_env: ${{ needs.can_deploy.outputs.gcp_env }}
+      branch_name: ${{ needs.can_deploy.outputs.branch_name }}
+    secrets: inherit
