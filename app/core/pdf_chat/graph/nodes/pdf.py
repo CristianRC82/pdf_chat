@@ -1,41 +1,93 @@
 import logging
-from pathlib import Path
-from jinja2 import Environment, FileSystemLoader
-from app.core.pdf_chat.graph.tools.pdf_generator_tool import pdf_generator_tool
+from typing import Dict, Any
+from xhtml2pdf import pisa
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+from io import BytesIO
+import os
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
-# Base project directory (current file location)
-BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent  # Adjust to reach 'app' folder
-TEMPLATE_PATH = BASE_DIR / "core" / "pdf_chat" / "graph" / "tools"
 TEMPLATE_FILE = "certificado.html"
+TEMPLATE_PATH = "app/core/pdf_chat/graph/tools"
 
-def run_pdf_agent_node(data: dict, file_name: str | None = None) -> str:
+def run_pdf_agent_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """
-    PDF node: receives a dictionary `data` with query results,
-    fills the HTML template, and generates a PDF.
-
-    Args:
-        data (dict): Data to be inserted into the HTML template.
-        file_name (str | None): Optional name for the generated PDF.
-
-    Returns:
-        str: Path to the generated PDF or an error message.
+    Nodo PDF:
+    Genera un PDF basado en los datos procesados por SQL/PostProcessing y lo deja en memoria (bytes).
+    Si se desea, puede guardarse también en disco para verificación.
     """
-    logger.info("[pdf node] Running PDF node")
+    logger.info("---NODE: PDF Agent---")
+
+    conversation_state = state.get("conversation_state", {})
+    document_number = state.get("document_number")
+    result_data = state.get("document_data")
+
+    if not document_number:
+        logger.warning("[pdf node] No document number provided")
+        conversation_state["awaiting_document_number"] = True
+        state["conversation_state"] = conversation_state
+        return {"next_node": "supervisor", "conversation_state": conversation_state}
+
+    if not result_data:
+        logger.warning(f"[pdf node] No information found for document {document_number}")
+        return {
+            "next_node": "chat",
+            "conversation_state": conversation_state,
+            "message": f"No se encontró información para el documento {document_number}"
+        }
 
     try:
-        # Load the HTML template relative to the project directory
-        env = Environment(loader=FileSystemLoader(TEMPLATE_PATH))
+        env = Environment(
+            loader=FileSystemLoader(TEMPLATE_PATH),
+            autoescape=select_autoescape(['html', 'xml'])
+        )
         template = env.get_template(TEMPLATE_FILE)
-        html_content = template.render(data)  # Render HTML with the provided data
 
-        # Generate PDF using the existing tool
-        result = pdf_generator_tool(html_content, file_name)
-        logger.info("[pdf node] PDF generation finished")
-        return result
+        html_content = template.render(
+            document_number=document_number,
+            data=result_data
+        )
+
+        pdf_buffer = BytesIO()
+        pisa_status = pisa.CreatePDF(html_content, dest=pdf_buffer)
+
+        if pisa_status.err:
+            logger.error("[pdf node] Error generating PDF")
+            return {
+                "next_node": "chat",
+                "conversation_state": conversation_state,
+                "error": "Error al generar el PDF"
+            }
+
+        pdf_buffer.seek(0)
+        pdf_bytes = pdf_buffer.read()
+
+        filename = f"certificado_{document_number}.pdf"
+
+        output_path = os.path.join("app", "core", "pdf_chat", "generated_pdfs")
+        os.makedirs(output_path, exist_ok=True)
+        pdf_path = os.path.join(output_path, filename)
+        with open(pdf_path, "wb") as f:
+            f.write(pdf_bytes)
+
+        logger.info(f"[pdf node] PDF generado correctamente para {document_number}")
+        logger.info(f"[pdf node] Ruta del PDF: {pdf_path}")
+
+        state.update({
+            "pdf_bytes": pdf_bytes,
+            "pdf_filename": filename,
+            "conversation_state": conversation_state,
+            "pdf_path": pdf_path,
+            "next_node": "chat"
+        })
+
+        return state
 
     except Exception as e:
-        logger.error("[pdf node] Error generating PDF", exc_info=True)
-        return f"Error in PDF node: {e}"
+        logger.error(f"[pdf node] Error generating PDF: {str(e)}", exc_info=True)
+        return {
+            "next_node": "chat",
+            "conversation_state": conversation_state,
+            "error": str(e)
+        }

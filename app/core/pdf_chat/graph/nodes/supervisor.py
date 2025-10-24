@@ -1,42 +1,66 @@
 import logging
-from typing import Dict, Any
-from langchain_core.messages import HumanMessage
+from typing import Dict, Any, List
 from app.core.pdf_chat.schemas.graph_states import GraphState
 from app.core.pdf_chat.services.supervisor_pipeline import question_router, RouteQuery
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-
 def supervisor_router_node(state: GraphState) -> Dict[str, Any]:
     """
-    function in charge of managing the supervisor
-    :param state: graph state
-    :return:dictionary with the instruction to the next node together with the user's query
+    Nodo supervisor que enruta la pregunta del usuario al flujo correspondiente
+    (por ejemplo, sql_flow, pdf_flow, default_flow, etc.).
+    Mantiene el estado de la conversación y asegura que las claves previas no se pierdan.
     """
+    logger.info("---NODO: Supervisor Router---")
+
     try:
-        logger.info("[supervisor node] start supervisor node")
+        question = state.get("question", "")
+        if not question:
+            logger.warning("No question found in state. Defaulting to 'default_flow'.")
+            state.update({"route": "default_flow", "next_node": "default_flow"})
+            return state
 
-        question = state["question"]
-
-        if "messages" not in state:
+        if "messages" not in state or not isinstance(state["messages"], list):
             state["messages"] = []
 
-        state["messages"].append(HumanMessage(content=question))
+        state["messages"].append({"type": "human", "content": question})
+
+        # Serializar mensajes
+        serialized_messages = []
+        for m in state["messages"]:
+            if isinstance(m, dict):
+                serialized_messages.append(m)
+            elif hasattr(m, "content"):
+                serialized_messages.append({"type": m.__class__.__name__, "content": m.content})
+            else:
+                serialized_messages.append({"type": "unknown", "content": str(m)})
 
         router_result: RouteQuery = question_router.invoke({
-            "question": state["question"],
-            "chat_history": state["messages"]
+            "question": question,
+            "chat_history": serialized_messages
         })
 
         route = router_result.datasource
         task_description = router_result.task_description
 
-        return {
+        logger.info(f"[supervisor] Routing to: {route} with task: {task_description}")
+
+        state.update({
             "route": route,
             "task_description": task_description,
             "question": question,
-            "messages": state["messages"]
-        }
+            "messages": serialized_messages,
+            "next_node": route
+        })
+
+        return state
+
     except Exception as e:
-        logger.error(f"[supervisor node] Error when invoking supervisor node: {e}", exc_info=True)
+        logger.exception(f"[supervisor] Error in router: {e}")
+        state.update({
+            "route": "default_flow",
+            "next_node": "default_flow",
+            "error": str(e)
+        })
+        return state

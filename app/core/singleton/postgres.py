@@ -1,7 +1,7 @@
 import logging
 import psycopg2
 from psycopg2 import OperationalError
-from app.core.config import settings  # Make sure this import points to your Settings class
+from app.core.config import settings  # Asegúrate de que apunte a tu Settings real
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -9,8 +9,9 @@ logger.setLevel(logging.INFO)
 
 class PostgresSingleton:
     """
-    Singleton that maintains a single active connection to PostgreSQL.
-    If the connection is lost, it automatically reestablishes it.
+    Singleton que mantiene una única conexión activa a PostgreSQL.
+    Si la conexión se pierde, se restablece automáticamente.
+    Incluye validación y limpieza de caracteres no UTF-8 en la configuración.
     """
 
     _instance = None
@@ -18,47 +19,72 @@ class PostgresSingleton:
 
     def __new__(cls):
         """
-        Creates a single instance of the singleton if it does not exist.
+        Crea una única instancia del singleton si no existe.
         """
         if cls._instance is None:
-            logger.info("[PostgresSingleton] Creating singleton instance for PostgreSQL")
+            logger.info("[PostgresSingleton] Creando instancia única de conexión PostgreSQL")
             cls._instance = super(PostgresSingleton, cls).__new__(cls)
             cls._instance._initialize()
         return cls._instance
 
     def _initialize(self):
         """
-        Initializes the PostgreSQL connection if it doesn't exist or is closed.
+        Inicializa la conexión a PostgreSQL si no existe o está cerrada.
         """
         if self._connection is None or self._is_connection_closed():
             self._connect()
 
     def _connect(self):
         """
-        Establishes a new PostgreSQL connection using settings parameters.
+        Establece una nueva conexión PostgreSQL usando parámetros del settings.
+        Limpia caracteres no UTF-8 y agrega logs de diagnóstico.
         """
         try:
-            logger.info("[PostgresSingleton] Establishing new PostgreSQL connection...")
+            logger.info("[PostgresSingleton] Estableciendo nueva conexión con PostgreSQL...")
+
+            # Validar y limpiar configuración
+            config_values = {
+                "DB": settings.POSTGRES_DB,
+                "USER": settings.POSTGRES_USER,
+                "PASSWORD": settings.POSTGRES_PASSWORD,
+                "HOST": settings.POSTGRES_HOST,
+                "PORT": settings.POSTGRES_PORT,
+            }
+
+            for name, value in config_values.items():
+                if not isinstance(value, str):
+                    value = str(value) 
+                try:
+                    value.encode("utf-8")
+                except UnicodeEncodeError:
+                    logger.warning(f"[PostgresSingleton] Valor no UTF-8 detectado en {name}: {repr(value)}")
+                config_values[name] = value.encode("utf-8", "ignore").decode("utf-8")
+
+            # Intentar conexión con valores limpios
             self._connection = psycopg2.connect(
-                dbname=settings.POSTGRES_DB,
-                user=settings.POSTGRES_USER,
-                password=settings.POSTGRES_PASSWORD,
-                host=settings.POSTGRES_HOST,
-                port=settings.POSTGRES_PORT,
+                dbname=config_values["DB"],
+                user=config_values["USER"],
+                password=config_values["PASSWORD"],
+                host=config_values["HOST"],
+                port=config_values["PORT"],
             )
 
-            # Set session as read-only and enable autocommit for safety
+            # Modo seguro: solo lectura + autocommit
             self._connection.set_session(readonly=True, autocommit=True)
-            logger.info("[PostgresSingleton] PostgreSQL connection established successfully.")
+            logger.info("[PostgresSingleton] Conexión a PostgreSQL establecida correctamente.")
 
         except OperationalError as e:
-            logger.error("[PostgresSingleton] Database connection failed", exc_info=True)
+            logger.error("[PostgresSingleton] Fallo al conectar con la base de datos", exc_info=True)
             raise RuntimeError(f"Database connection failed: {e}")
+
+        except UnicodeDecodeError as e:
+            logger.error("[PostgresSingleton] Error de codificación UTF-8 en configuración", exc_info=True)
+            raise RuntimeError(f"Invalid UTF-8 character in database settings: {e}")
 
     def _is_connection_closed(self) -> bool:
         """
-        Checks whether the current connection is closed.
-        psycopg2 returns an integer: 0 means open, >0 means closed.
+        Verifica si la conexión actual está cerrada.
+        psycopg2 retorna 0 si está abierta, >0 si está cerrada.
         """
         try:
             return self._connection is None or self._connection.closed != 0
@@ -67,16 +93,16 @@ class PostgresSingleton:
 
     def get_connection(self):
         """
-        Returns an active connection. Reconnects automatically if closed.
+        Devuelve una conexión activa. Reconecta automáticamente si está cerrada.
         """
         if self._is_connection_closed():
-            logger.warning("[PostgresSingleton] Connection is closed. Reconnecting...")
+            logger.warning("[PostgresSingleton] Conexión cerrada. Reintentando conexión...")
             self._connect()
         return self._connection
 
 
 def get_postgres_instance():
     """
-    Returns an active PostgreSQL connection from the singleton.
+    Devuelve una conexión activa PostgreSQL desde el singleton.
     """
     return PostgresSingleton().get_connection()

@@ -6,28 +6,20 @@ from app.core.singleton.postgres import get_postgres_instance
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-
 @tool("query_postgres_tool", return_direct=True)
 def query_postgres_tool(query: str, max_rows_to_return: int = 20) -> str:
     """
-    Executes a read-only SQL query (SELECT/WITH) in PostgreSQL and returns formatted results.
-    Used by graph nodes that need to retrieve data from the database.
-
-    Args:
-        query (str): SQL query to execute (must be SELECT or WITH).
-        max_rows_to_return (int, optional): Maximum number of rows to return. Defaults to 20.
-
-    Returns:
-        str: Formatted query results or an error message.
+    Executes a read-only SQL query on PostgreSQL and returns results as a list of dictionaries.
+    Compatible with LangGraph nodes (PDF, logic, etc.)
     """
     logger.info("[postgresql_tool] Starting query execution")
 
     if not query or not query.strip():
-        return "Error: SQL query cannot be empty."
+        return "Error: la consulta SQL no puede estar vacía."
 
     first_word = query.strip().split()[0].upper()
     if first_word not in ("SELECT", "WITH"):
-        return "Error: Only read-only queries (SELECT/WITH) are allowed."
+        return "Error: solo se permiten consultas de solo lectura (SELECT/WITH)."
 
     try:
         conn = get_postgres_instance()
@@ -37,13 +29,13 @@ def query_postgres_tool(query: str, max_rows_to_return: int = 20) -> str:
             rows = cur.fetchall()
 
             if not rows:
-                return "No results returned."
+                return "No se encontraron resultados."
 
             limited_rows = rows[:max_rows_to_return]
             output_lines = [
-                f"Results (showing {len(limited_rows)} of {len(rows)} rows):"
+                f"Resultados (mostrando {len(limited_rows)} de {len(rows)} filas):"
                 if len(rows) > max_rows_to_return
-                else "Results:"
+                else "Resultados:"
             ]
 
             for row in limited_rows:
@@ -54,8 +46,8 @@ def query_postgres_tool(query: str, max_rows_to_return: int = 20) -> str:
 
     except OperationalError as e:
         logger.error("[postgresql_tool] Database connection error:", exc_info=True)
-        return f"Database connection error: {e}"
+        return f"Error de conexión a la base de datos: {e}"
 
     except Exception as e:
         logger.error("[postgresql_tool] Unexpected error:", exc_info=True)
-        return f"Unexpected error querying PostgreSQL: {e}"
+        return f"Error inesperado al consultar PostgreSQL: {e}"
