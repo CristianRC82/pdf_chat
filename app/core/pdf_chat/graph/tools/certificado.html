@@ -1,64 +1,286 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Certificado de Crédito</title>
-  <style>
-    body{ font-family:'Segoe UI',Arial,sans-serif; background:#f4f6fa; padding:20px; }
-    .sheet{ background:white; max-width:800px; margin:auto; padding:30px; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,0.1); }
-    header{ display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #0056b3; padding-bottom:10px; }
-    .logo img{ height:60px; }
-    .title{ text-align:center; font-size:22px; font-weight:bold; color:#0056b3; margin-top:20px; }
-    .section{ margin-top:20px; }
-    .field{ margin-bottom:10px; }
-    label{ font-weight:bold; color:#333; }
-    .value{ border:1px solid #ccc; border-radius:6px; padding:6px 10px; background:#fafafa; }
-    table{ width:100%; border-collapse:collapse; margin-top:10px; }
-    th,td{ border:1px solid #ccc; padding:8px; text-align:center; }
-    th{ background:#e9eef8; }
-    footer{ margin-top:30px; text-align:center; border-top:1px solid #ccc; padding-top:10px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificado DaviPlata - Transferencia de Fondos</title>
+    <style>
+        @page {
+            size: Letter;
+            margin: 18mm 18mm 20mm 18mm;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            line-height: 1.5;
+            color: #333;
+            background: #fff;
+            margin: 0;
+            padding: 0;
+            font-size: 13px; /* Tamaño base reducido ligeramente */
+        }
+
+        .certificate-container {
+            max-width: 750px;
+            width: 100%;
+            margin: 0 auto;
+            display: block;
+            padding: 10px 25px;
+        }
+
+        .certificate-paper {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 5px 20px rgba(190, 0, 0, 0.15);
+            padding: 35px;
+            position: relative;
+            overflow: visible;
+            border: 1px solid #f0d0d0;
+        }
+
+        .certificate-paper::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 8px;
+            background: linear-gradient(90deg, #c00 0%, #c00 50%, #e74c3c 50%, #e74c3c 100%);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #f0d0d0;
+        }
+
+        .bank-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #c00;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .certificate-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #a00;
+            margin: 10px 0;
+            text-transform: uppercase;
+        }
+
+        .content {
+            margin-bottom: 25px;
+        }
+
+        .user-info {
+            margin-bottom: 20px;
+            padding: 12px;
+            background-color: #fff5f5;
+            border-radius: 6px;
+            border-left: 4px solid #c00;
+            box-shadow: 0 1px 3px rgba(190, 0, 0, 0.08);
+            font-size: 12.5px;
+        }
+
+        .highlight {
+            font-weight: bold;
+            color: #c00;
+        }
+
+        .transaction-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 2px 6px rgba(190, 0, 0, 0.08);
+            border-radius: 6px;
+            overflow: hidden;
+            font-size: 12.5px;
+        }
+
+        .transaction-table th {
+            background: linear-gradient(to bottom, #c00, #a00);
+            color: white;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .transaction-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f0d0d0;
+        }
+
+        .transaction-table tr:nth-child(even) {
+            background-color: #fff5f5;
+        }
+
+        .transaction-table tr:hover {
+            background-color: #ffecec;
+        }
+
+        .date-info {
+            text-align: center;
+            margin: 15px 0;
+            font-style: italic;
+            color: #666;
+            padding: 8px;
+            background-color: #fff5f5;
+            border-radius: 4px;
+            font-size: 12.5px;
+        }
+
+        .footer {
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 1px solid #f0d0d0;
+        }
+
+        .signature {
+            text-align: right;
+            margin-bottom: 20px;
+            font-size: 12.5px;
+        }
+
+        .signature strong {
+            display: block;
+            margin-top: 4px;
+            color: #a00;
+        }
+
+        .consumer-info {
+            background-color: #fff5f5;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            color: #666;
+            border-left: 4px solid #e74c3c;
+            box-shadow: 0 1px 3px rgba(190, 0, 0, 0.08);
+        }
+
+        .watermark {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            opacity: 0.05;
+            font-size: 90px;
+            font-weight: bold;
+            color: #c00;
+            transform: rotate(-15deg);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .stamp {
+            position: absolute;
+            bottom: 35px;
+            left: 35px;
+            width: 100px;
+            height: 100px;
+            border: 3px dashed #c00;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.7;
+            transform: rotate(-10deg);
+        }
+
+        .stamp-text {
+            color: #c00;
+            font-weight: bold;
+            font-size: 12px;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        @media print {
+            body {
+                background-color: white;
+                padding: 0;
+            }
+
+            .certificate-paper {
+                box-shadow: none;
+                padding: 30px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="sheet" id="certificado">
-    <header>
-      <div>
-        <div style="font-weight:bold; font-size:13px;">Entidad Financiera S.A.S.</div>
-        <div style="font-size:12px; color:#555;">Nit: 900.000.000-0</div>
-        <div style="font-size:12px; color:#555;">Bogotá, Colombia</div>
-      </div>
-    </header>
-
-    <div class="title">CERTIFICADO DE CRÉDITO</div>
-
-    <div class="section">
-      <div class="field"><label>Nombre:</label> <div class="value" id="out_nombre">—</div></div>
-      <div class="field"><label>Cédula:</label> <div class="value" id="out_cedula">—</div></div>
-      <div class="field"><label>Número de cuenta:</label> <div class="value" id="out_cuenta">—</div></div>
-      <div class="field"><label>Monto total:</label> <div class="value" id="out_monto">—</div></div>
-      <div class="field"><label>Fecha de emisión:</label> <div class="value" id="out_fecha">—</div></div>
+    <div class="certificate-container">
+        <div class="certificate-paper">
+            <div class="watermark">DAVIPLATA</div>
+            <div class="stamp">
+                <div class="stamp-text">Certificado<br>Válido</div>
+            </div>
+            
+            <div class="header">
+                <div class="bank-name">BANCO DAVIVIENDA S.A.</div>
+                <div class="certificate-title">Certifica:</div>
+            </div>
+            
+            <div class="content">
+                <div class="user-info">
+                    Que el(la) señor(a) <span class="highlight">{{ data.nombre_cliente }}</span>, 
+                    quien se identifica con el número de documento <span class="highlight">{{ data.cedula }}</span> 
+                    y es titular del DaviPlata número <span class="highlight">{{ data.numero_cuenta }}</span>.
+                </div>
+                
+                <table class="transaction-table">
+                    <thead>
+                        <tr>
+                            <th>N° de transacción</th>
+                            <th>Valor</th>
+                            <th>Fecha de Pago</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if data.creditos %}
+                            {% for credito in data.creditos %}
+                                {% for pago in credito.pagos %}
+                                <tr>
+                                    <td>{{ pago.numero_cuota }}</td>
+                                    <td>${{ "{:,.0f}".format(pago.valor_cuota|default(0)|int) }}</td>
+                                    <td>{{ pago.fecha_pago }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% endfor %}
+                        {% else %}
+                            <tr><td colspan="3" style="text-align:center;">Sin movimientos registrados.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+                
+                <div class="date-info">
+                    Este certificado se emite en la ciudad de Bogotá, 
+                    <span class="highlight">{{ data.fecha_certificado }}</span>.
+                </div>
+            </div>
+            
+            <div class="footer">
+                <div class="signature">
+                    Atentamente,<br><br>
+                    <strong>Departamento de Servicio DaviPlata</strong><br>
+                    <strong>Banco Davivienda S.A.</strong>
+                </div>
+                
+                <div class="consumer-info">
+                    "El Defensor del Consumidor Financiero designado por Davivienda es el Dr. José Guillermo Peña González, 
+                    y el Dr. Andrés Augusto Garavito Colmenares es su suplente. Su información y funciones pueden ser 
+                    consultadas en el botón ¿Necesita ayuda? de la App DaviPlata."
+                </div>
+            </div>
+        </div>
     </div>
-
-    <div class="section">
-      <h3 style="color:#0056b3;">Detalle de cuotas</h3>
-      <table id="tabla_cuotas">
-        <thead>
-          <tr><th>N°</th><th>Valor</th><th>Fecha de pago</th><th>Estado</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>1</td><td>$350.000</td><td>2025-11-22</td><td>Pendiente</td></tr>
-          <tr><td>2</td><td>$350.000</td><td>2025-12-22</td><td>Pendiente</td></tr>
-          <tr><td>3</td><td>$350.000</td><td>2026-01-22</td><td>Pendiente</td></tr>
-          <tr><td>4</td><td>$350.000</td><td>2026-02-22</td><td>Pendiente</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <footer>
-      <p>Este certificado se expide a solicitud del interesado y tiene validez según los registros de la entidad.</p>
-      <p style="margin-top:30px;">_________________________<br>Gerente de Crédito</p>
-    </footer>
-  </div>
 </body>
 </html>

@@ -24,7 +24,8 @@ dependencies = [
     "langchain-community",
     "faiss-cpu==1.11.0.post1",
     "numpy==2.2.6",
-    "xhtml2pdf",
+    "weasyprint",
+    "jinja2",
     "psycopg2"
 
 

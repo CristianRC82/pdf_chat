@@ -9,23 +9,12 @@ logger.setLevel(logging.INFO)
 class Pdf_chat_service:
     """
     Service to handle PDF chat flow using a LangGraph with SQL and PDF nodes.
-    Handles conversation state to remember document number and user context.
     """
 
     def __init__(self):
         self.graph_instance = GraphSingleton()
 
     def execute_and_process_graph(self, payload: dict, conversation_state: dict = None) -> dict:
-        """
-        Executes the LangGraph for a user question, managing conversation state and PDF generation.
-        
-        Args:
-            payload (dict): Incoming user data with keys 'userId', 'question', 'conversationId'.
-            conversation_state (dict, optional): Previous conversation state.
-
-        Returns:
-            dict: Response containing status, result, and updated conversation_state.
-        """
         try:
             user_id = payload.get("userId")
             question = payload.get("question")
@@ -33,7 +22,13 @@ class Pdf_chat_service:
 
             logger.info(f"[graph service] Starting execution for user {user_id} - conversation {conversation_id}")
 
-            config = {"configurable": {"thread_id": conversation_id,"langfuse_session_id": conversation_id,"langfuse_user_id": user_id,}}
+            config = {
+                "configurable": {
+                    "thread_id": conversation_id,
+                    "langfuse_session_id": conversation_id,
+                    "langfuse_user_id": user_id,
+                }
+            }
 
             input_data = {"question": question}
 
@@ -42,20 +37,43 @@ class Pdf_chat_service:
                 if conversation_state.get("document_number"):
                     input_data["document_number"] = conversation_state["document_number"]
 
+            # Ejecutar el grafo
             response = self.graph_instance.run(input_data, config=config)
-
-            logger.info(f"[graph service] Graph execution completed. Raw response: {response}")
-
             new_state = response.get("conversation_state", {})
 
-            content = response.get("final_answer", "")
+            # 🔍 Depuración para ver toda la estructura
+            logger.debug(f"[graph service] Raw graph response: {response}")
+
+            message = (
+                response.get("message")
+                or response.get("final_message")
+                or response.get("output", {}).get("message")
+                or new_state.get("message")
+                or new_state.get("output", {}).get("message")
+                or ""
+            )
+
+            pdf_path = (
+                response.get("pdf_path")
+                or response.get("output", {}).get("pdf_path")
+                or new_state.get("pdf_path")
+                or new_state.get("output", {}).get("pdf_path")
+                or ""
+            )
+
+            content = response.get("final_answer", "") or message
+            logger.info(f"message {message}")
+            logger.info(f"response {response.get('final_answer', '')}")
 
             logger.info(f"[graph service] Final answer: {content}")
 
             return {
                 "status": response.get("status", "200"),
-                "result": content,
-                "conversation_state": new_state
+                "result": content or "Sin respuesta disponible.",
+                "message": message,
+                "pdf_path": pdf_path,
+                "conversation_state": new_state,
+                "error": response.get("error")
             }
 
         except Exception as e:
